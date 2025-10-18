@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 3em;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .sync-status {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+        }
+
+        .sync-status.connected {
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .sync-status.disconnected {
+            background: rgba(244, 67, 54, 0.3);
+        }
+
+        .kids-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .kid-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .kid-name {
+            font-size: 2em;
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .songs-remaining {
+            font-size: 3em;
+            color: #764ba2;
+            text-align: center;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        .songs-label {
+            text-align: center;
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .song-dots {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .song-dot {
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .song-dot.used {
+            background: #e0e0e0;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .song-dot:hover:not(.used) {
+            transform: scale(1.1);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+        }
+
+        .song-dot.animating {
+            animation: dotDisappear 0.6s ease-out;
+        }
+
+        @keyframes dotDisappear {
+            0% { 
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% { 
+                transform: scale(1.5) rotate(180deg);
+                opacity: 0.7;
+            }
+            100% { 
+                transform: scale(0.8);
+                opacity: 1;
+            }
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .use-song {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .use-song:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+        }
+
+        .use-song:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .reset {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .reset:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+        }
+
+        .celebration {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            text-align: center;
+            font-size: 2em;
+            color: #667eea;
+            display: none;
+            z-index: 1000;
+        }
+
+        .celebration.show {
+            display: block;
+            animation: popIn 0.5s ease;
+        }
+
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .warning {
+            text-align: center;
+            color: #f5576c;
+            font-size: 1.3em;
+            margin-top: 15px;
+            font-weight: bold;
+            min-height: 30px;
+        }
+
+        .add-kid-section {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .add-kid-btn {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #667eea;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .add-kid-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+
+        .modal input {
+            padding: 15px;
+            font-size: 1.2em;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            margin: 20px 0;
+            width: 300px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .modal-buttons button {
+            flex: none;
+            padding: 12px 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Song Tracker 🎵</h1>
+        
+        <div class="sync-status" id="syncStatus">
+            🔄 Connecting to Firebase...
+        </div>
+        
+        <div class="kids-container" id="kidsContainer"></div>
+
+        <div class="add-kid-section">
+            <button class="add-kid-btn" onclick="showAddKidModal()">+ Add Child</button>
+        </div>
+    </div>
+
+    <div class="celebration" id="celebration">
+        🎉 All songs used! 🎉
+    </div>
+
+    <div class="modal" id="addKidModal">
+        <div class="modal-content">
+            <h2 style="color: #667eea; margin-bottom: 20px;">Add a Child</h2>
+            <input type="text" id="kidNameInput" placeholder="Enter name" maxlength="20">
+            <div class="modal-buttons">
+                <button class="use-song" onclick="addKid()">Add</button>
+                <button class="reset" onclick="hideAddKidModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, onValue, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBJi40tZkHtVFV2bLarr3LC3CY7USp-L4w",
+            authDomain: "song-tracker-122ab.firebaseapp.com",
+            databaseURL: "https://song-tracker-122ab-default-rtdb.firebaseio.com",
+            projectId: "song-tracker-122ab",
+            storageBucket: "song-tracker-122ab.firebasestorage.app",
+            messagingSenderId: "234579661109",
+            appId: "1:234579661109:web:3659d39839c47c486b3c7c"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const trackerRef = ref(database, 'songTracker');
+
+        let kids = [];
+        const MAX_SONGS = 10;
+        let isInitialized = false;
+
+        // Initialize with default data if Firebase is empty
+        async function initializeData() {
+            const snapshot = await get(trackerRef);
+            if (!snapshot.exists()) {
+                // First time setup - create default kids
+                const defaultKids = [
+                    { name: 'Josiah', songsUsed: 0 },
+                    { name: 'Noah', songsUsed: 0 }
+                ];
+                await set(trackerRef, defaultKids);
+                updateSyncStatus(true);
+            }
+        }
+
+        // Listen for real-time updates from Firebase
+        onValue(trackerRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                kids = data;
+                renderKids();
+                if (!isInitialized) {
+                    isInitialized = true;
+                    updateSyncStatus(true);
+                }
+            }
+        }, (error) => {
+            console.error("Firebase error:", error);
+            updateSyncStatus(false);
+        });
+
+        function updateSyncStatus(connected) {
+            const statusDiv = document.getElementById('syncStatus');
+            if (connected) {
+                statusDiv.textContent = '✓ Synced across all devices';
+                statusDiv.className = 'sync-status connected';
+            } else {
+                statusDiv.textContent = '⚠ Connection issue - changes may not sync';
+                statusDiv.className = 'sync-status disconnected';
+            }
+        }
+
+        function saveToFirebase() {
+            set(trackerRef, kids).catch((error) => {
+                console.error("Error saving to Firebase:", error);
+                updateSyncStatus(false);
+            });
+        }
+
+        function renderKids() {
+            const container = document.getElementById('kidsContainer');
+            container.innerHTML = '';
+
+            kids.forEach((kid, index) => {
+                const songsRemaining = MAX_SONGS - kid.songsUsed;
+                const card = document.createElement('div');
+                card.className = 'kid-card';
+                
+                let dotsHTML = '';
+                for (let i = 0; i < MAX_SONGS; i++) {
+                    const usedClass = i < kid.songsUsed ? 'used' : '';
+                    dotsHTML += `<div class="song-dot ${usedClass}" onclick="window.toggleSong(${index}, ${i})"></div>`;
+                }
+
+                const warningText = songsRemaining === 0 ? 'All songs used today!' : 
+                                   songsRemaining <= 2 ? `Only ${songsRemaining} song${songsRemaining === 1 ? '' : 's'} left!` : '';
+
+                card.innerHTML = `
+                    <div class="kid-name">${kid.name}</div>
+                    <div class="songs-remaining">${songsRemaining}</div>
+                    <div class="songs-label">songs left</div>
+                    <div class="song-dots">${dotsHTML}</div>
+                    <div class="warning">${warningText}</div>
+                    <div class="buttons">
+                        <button class="use-song" onclick="window.useSong(${index})" ${songsRemaining === 0 ? 'disabled' : ''}>
+                            Play a Song
+                        </button>
+                        <button class="reset" onclick="window.resetKid(${index})">Reset</button>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        window.toggleSong = function(kidIndex, songIndex) {
+            if (songIndex < kids[kidIndex].songsUsed) {
+                // Clicking on a used song - reduce the count
+                kids[kidIndex].songsUsed = songIndex;
+                saveToFirebase();
+            } else if (songIndex === kids[kidIndex].songsUsed) {
+                // Clicking on the next available song - use it
+                window.useSong(kidIndex);
+            }
+        };
+
+        window.useSong = function(kidIndex) {
+            if (kids[kidIndex].songsUsed < MAX_SONGS) {
+                // Play sound
+                playSound();
+                
+                // Animate the dot that's about to be used
+                const dots = document.querySelectorAll('.kid-card')[kidIndex].querySelectorAll('.song-dot');
+                const dotToAnimate = dots[kids[kidIndex].songsUsed];
+                dotToAnimate.classList.add('animating');
+                
+                // Update the count after a short delay
+                setTimeout(() => {
+                    const previousCount = kids[kidIndex].songsUsed;
+                    kids[kidIndex].songsUsed++;
+                    saveToFirebase();
+                    
+                    if (kids[kidIndex].songsUsed === MAX_SONGS) {
+                        showCelebration();
+                    }
+                }, 300);
+            }
+        };
+
+        window.resetKid = function(kidIndex) {
+            if (confirm(`Reset ${kids[kidIndex].name}'s song count?`)) {
+                kids[kidIndex].songsUsed = 0;
+                saveToFirebase();
+            }
+        };
+
+        function playSound() {
+            // Create an audio context
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Create oscillator for a fun "pop" sound
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Fun descending tone
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.1);
+            
+            // Volume envelope
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            oscillator.type = 'sine';
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        }
+
+        function showCelebration() {
+            const celebration = document.getElementById('celebration');
+            celebration.classList.add('show');
+            setTimeout(() => {
+                celebration.classList.remove('show');
+            }, 2000);
+        }
+
+        window.showAddKidModal = function() {
+            document.getElementById('addKidModal').classList.add('show');
+            document.getElementById('kidNameInput').value = '';
+            document.getElementById('kidNameInput').focus();
+        };
+
+        window.hideAddKidModal = function() {
+            document.getElementById('addKidModal').classList.remove('show');
+        };
+
+        window.addKid = function() {
+            const nameInput = document.getElementById('kidNameInput');
+            const name = nameInput.value.trim();
+            
+            if (name) {
+                kids.push({ name: name, songsUsed: 0 });
+                saveToFirebase();
+                window.hideAddKidModal();
+            } else {
+                alert('Please enter a name');
+            }
+        };
+
+        // Allow Enter key to add kid
+        document.getElementById('kidNameInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                window.addKid();
+            }
+        });
+
+        // Initialize data when page loads
+        initializeData();
+    </script>
+</body>
+</html>
